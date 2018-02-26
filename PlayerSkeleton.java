@@ -21,7 +21,7 @@ public class PlayerSkeleton {
 	/********************************* End of multipliers *********************************/
 
 	private static boolean visualMode = false;
-	private static final int DATA_SIZE = 30;
+	private static final int DATA_SIZE = 50;
 
 	//implement this function to have a working system
 	/**
@@ -56,8 +56,44 @@ public class PlayerSkeleton {
 		setVisualMode();
 		setParameters();
 		printParameters();
-		
-		executeDataSet();
+
+		int numIterations = 200;
+		double mean = executeDataSet();
+		double nextMean;
+
+		boolean posWeightChange = true;
+		float weightChange = 0.10f;
+		float weightDampeningMultiplier = 0.95f;
+		for(int i = 0; i < numIterations; i++) {
+			if (posWeightChange) {
+				rowsClearedMult += weightChange * rowsClearedMult;
+			} else {
+				rowsClearedMult -= weightChange * rowsClearedMult;
+			}
+
+			nextMean = executeDataSet();
+
+			// >= to allow sideways movements
+			if (nextMean >= mean) {
+				mean = nextMean;
+			} else {
+
+				// attempts to try a weight change in the opposite direction.
+				posWeightChange = !posWeightChange;
+
+				// clears the previous weight change
+				if (posWeightChange) {
+					rowsClearedMult += weightChange * rowsClearedMult;
+				} else {
+					rowsClearedMult -= weightChange * rowsClearedMult;
+				}
+			}
+
+			// updates movement
+			weightChange *= weightDampeningMultiplier;
+			printParameters();
+		}
+
 
 		printParameters();
 		saveParameters();
@@ -66,7 +102,7 @@ public class PlayerSkeleton {
 	/**
 	 * Executes {@link #DATA_SIZE} number of iterations with the current parameter weight values to retrieve.
 	 */
-	private static void executeDataSet() {
+	private static double executeDataSet() {
 		int maxScore = Integer.MIN_VALUE;
 		int minScore = Integer.MAX_VALUE;
 		int sum = 0;
@@ -89,12 +125,14 @@ public class PlayerSkeleton {
 			sum += s.getRowsCleared();
 			var += s.getRowsCleared() * s.getRowsCleared();
 			System.out.println("You have completed " + s.getRowsCleared() + " rows.");
-		}
 
+
+		}
 		var -= ((double) sum) * ((double) sum) / DATA_SIZE;
 		var /= DATA_SIZE - 1;
-
 		System.out.println(" Ave: " + (sum / DATA_SIZE) + " Min: " + minScore + " Max: " + maxScore + " Var: " + var);
+
+		return ((double) sum) / DATA_SIZE;
 	}
 
 	private static void setVisualMode() {
