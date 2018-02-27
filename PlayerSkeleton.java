@@ -63,45 +63,53 @@ public class PlayerSkeleton {
 		setParameters();
 		printParameters();
 
-		int numIterations = 200;
+		int numIterations = 100;
 		double mean = executeDataSet();
 		double nextMean;
+		float nextValue;
 
-		boolean posWeightChange = true;
-		float weightChange = 0.10f;
-		float weightDampeningMultiplier = 0.95f;
-		for(int i = 0; i < numIterations; i++) {
-			if (posWeightChange) {
-				rowsClearedMult += weightChange * rowsClearedMult;
-			} else {
-				rowsClearedMult -= weightChange * rowsClearedMult;
-			}
-
-			nextMean = executeDataSet();
-
-			// >= to allow sideways movements
-			if (nextMean >= mean) {
-				mean = nextMean;
-			} else {
-
-				// attempts to try a weight change in the opposite direction.
-				posWeightChange = !posWeightChange;
-
-				// clears the previous weight change
-				if (posWeightChange) {
-					rowsClearedMult += weightChange * rowsClearedMult;
-				} else {
-					rowsClearedMult -= weightChange * rowsClearedMult;
-				}
-			}
-
-			// updates movement
-			weightChange *= weightDampeningMultiplier;
-			printParameters();
+		// boolean value for whether to have a postive or negative weight change
+		boolean[] posWeightChanges = new boolean[NUM_PARAMETERS];
+		for (int i = 0; i < NUM_PARAMETERS; i++) {
+			posWeightChanges[i] = (multiplierWeights[i] > 0);
 		}
 
+		for(int i = 0; i < numIterations; i++) {
+			float weightChange = 0.1f;
+			float weightDampeningMultiplier = 0.75f;
+			for(int j = 0; j < NUM_PARAMETERS; j++) {
+				// contains the next value of the multiplier weight to be edited
+				nextValue = multiplierWeights[j];
+
+				if (posWeightChanges[j]) {
+					nextValue += weightChange * Math.abs(multiplierWeights[j]);
+				} else {
+					nextValue -= weightChange * Math.abs(multiplierWeights[j]);
+				}
+
+				nextMean = executeDataSet();
+
+				// >= to allow sideways movements
+				if (nextMean >= mean) {
+					System.out.println("improvemenent! " +  multiplierNames[j] + " "
+							+ (posWeightChanges[j] ? "increase" : "decrease"));
+					mean = nextMean;
+					multiplierWeights[j] = nextValue;
+				} else {
+					System.out.println(multiplierNames[j] + " unchanged");
+					posWeightChanges[j] = !posWeightChanges[j];
+				}
+
+				printParameters();
+			}
+
+			weightChange *= weightDampeningMultiplier;
+			System.out.println("iteration " + i);
+
+		}
 
 		printParameters();
+		System.out.println(mean);
 		saveParameters();
 	}
 
@@ -130,9 +138,7 @@ public class PlayerSkeleton {
 			minScore = Math.min(minScore, s.getRowsCleared());
 			sum += s.getRowsCleared();
 			var += s.getRowsCleared() * s.getRowsCleared();
-			System.out.println("You have completed " + s.getRowsCleared() + " rows.");
-
-
+			// System.out.println("You have completed " + s.getRowsCleared() + " rows.");
 		}
 		var -= ((double) sum) * ((double) sum) / DATA_SIZE;
 		var /= DATA_SIZE - 1;
@@ -246,7 +252,7 @@ public class PlayerSkeleton {
 		String line = multiplierNames[0] + ": " + multiplierWeights[0];
 
 		for (int i = 1; i < NUM_PARAMETERS; i++) {
-			line += " " + multiplierNames[i] + ": " + multiplierWeights[i];
+			line += " " + multiplierNames[i] + ": " + String.valueOf(multiplierWeights[i]);
 		}
 
 		System.out.println(line);
