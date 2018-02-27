@@ -373,7 +373,8 @@ public class PlayerSkeleton {
 		public float getBumpiness(int[] top) {
 			float bumpiness = 0;
 			for (int i = 0; i < top.length - 1; i++) {
-				bumpiness += Math.abs(top[i] - top[i + 1]);
+				// penalizes more for bumpier cases
+				bumpiness += Math.pow(top[i] - top[i + 1], 2);
 			}
 
 			return bumpiness;
@@ -398,7 +399,7 @@ public class PlayerSkeleton {
 					}
 				}
 			}
-			return glitchCount;
+			return (float) glitchCount;
 		}
 	}
 
