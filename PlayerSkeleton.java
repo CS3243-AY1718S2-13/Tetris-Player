@@ -14,19 +14,25 @@ public class PlayerSkeleton {
 	private static final int NUM_BEST_SIMULATED = 5;
 
 	/********************************* Multipliers to determine value of simulated move *********************************/
-	private static final int NUM_PARAMETERS = 5;
+	private static final int NUM_PARAMETERS = 6;
 	private static final int ROWS_CLEARED_MULT_INDEX = 0;
 	private static final int GLITCH_COUNT_MULT_INDEX = 1;
 	private static final int BUMPINESS_MULT_INDEX = 2;
 	private static final int TOTAL_HEIGHT_MULT_INDEX = 3;
 	private static final int MAX_HEIGHT_MULT_INDEX = 4;
+	private static final int VERTICALLY_CONNECTED_HOLES_MULT_INDEX = 5;
 
 	// Heavily prioritise objective of row clearing. Other Multipliers used for tiebreakers.
 	// initialized to default values
-	private static float[] multiplierWeights = {10f, -0.1f, -01.f, -0.5f, -0.1f};
+	private static float[] multiplierWeights = {10f, -0.1f, -01.f, -0.5f, -0.1f, -0.5f};
 
 	private static String[] multiplierNames = {
-		"ROWS_CLEARED_MULT", "GLITCH_COUNT_MUL", "BUMPINESS_MUL", "TOTAL_HEIGHT_MUL", "MAX_HEIGHT_MUL"
+			"ROWS_CLEARED_MULT",
+			"GLITCH_COUNT_MUL",
+			"BUMPINESS_MUL",
+			"TOTAL_HEIGHT_MUL",
+			"MAX_HEIGHT_MUL",
+			"VERTICALLY_CONNECTED_HOLES"
 	};
 
 	/********************************* End of multipliers *********************************/
@@ -408,7 +414,9 @@ public class PlayerSkeleton {
 					+ multiplierWeights[TOTAL_HEIGHT_MULT_INDEX] * getTotalHeight(top)
 					+ multiplierWeights[ROWS_CLEARED_MULT_INDEX] * rowsCleared
 					+ multiplierWeights[MAX_HEIGHT_MULT_INDEX] * maxHeight
-					+ multiplierWeights[GLITCH_COUNT_MULT_INDEX] * getGlitchCount(field);
+					+ multiplierWeights[GLITCH_COUNT_MULT_INDEX] * getGlitchCount(field, top)
+					+ multiplierWeights[VERTICALLY_CONNECTED_HOLES_MULT_INDEX] * getVerticalHeightHoles(field, top);
+
 		}
 
 		// Checks for how bumpy the top is
@@ -431,9 +439,9 @@ public class PlayerSkeleton {
 			return totalHeight;
 		}
 
-		// Returns the total number of glitch tiles
-		public int getGlitchCount(int[][] field) {
+		public int getGlitchCount(int[][] field, int[] top) {
 			int glitchCount = 0;
+
 			for (int c = 0; c < field[0].length; c++) {
 				for (int r = 0; r < top[c]; r++) {
 					if (field[r][c] == 0) {
@@ -441,7 +449,63 @@ public class PlayerSkeleton {
 					}
 				}
 			}
+
 			return glitchCount;
+		}
+
+		// Returns the sum of all wells
+		public int getSumofAllWells(int[][] field) {
+			int wellCount = 0;
+			for(int c = 0; c < field[0].length; c++) {
+				for(int r = top[c]; r < field.length; r++) {
+					if(field[r][c] != 0) break;
+					else if(isWell(field, r, c)) wellCount++;
+				}
+			}
+			return wellCount;
+		}
+
+		// Returns the maximum well depth
+		public int getMaxWellDepth(int[][] field) {
+			int maxDepth = 0;
+			for (int c = 0; c < field[0].length; c++) {
+				int currDepth = 0;
+				for(int r = top[c]; r < field.length; r++) {
+					if(field[r][c] != 0) break;
+					else if (isWell(field, r, c)) currDepth++;
+				}
+				maxDepth = (currDepth > maxDepth)? currDepth : maxDepth;
+			}
+			return maxDepth;
+		}
+
+		// Returns true if block at (r,c) is a well
+		public boolean isWell(int[][] field, int r, int c) {
+			return (((c == 0) && (field[r][c + 1] != 0))
+					|| ((c == field[0].length - 1) && (field[r][c - 1] != 0))
+					|| ((field[r][c - 1] != 0) && (field[r][c + 1] != 0)));
+		}
+		/**
+		 * Returns the number of vertically counted holes. Each vertically connected hole is counted as one.
+		 */
+		public int getVerticalHeightHoles(int[][] field, int[] top) {
+			int verticalHoles = 0;
+			int[] curr = new int[top.length];
+
+			for (int c = 0; c < COLS; c++) {
+				while (curr[c] < top[c]) {
+					if (field[curr[c]][c] == 0) {
+						verticalHoles++;
+						while (field[curr[c]][c] == 0) {
+							curr[c]++;
+						}
+					}
+
+					curr[c]++;
+				}
+			}
+
+			return verticalHoles;
 		}
 	}
 
