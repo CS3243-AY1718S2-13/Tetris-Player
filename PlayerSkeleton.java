@@ -1,4 +1,7 @@
 import java.util.Scanner;
+import java.util.ArrayList;
+import java.util.PriorityQueue;
+import java.util.Comparator;
 
 import java.io.FileWriter;
 import java.io.FileReader;
@@ -7,6 +10,8 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 
 public class PlayerSkeleton {
+
+	private static final int NUM_BEST_SIMULATED = 5;
 
 	/********************************* Multipliers to determine value of simulated move *********************************/
 	private static final int NUM_PARAMETERS = 6;
@@ -35,6 +40,38 @@ public class PlayerSkeleton {
 	private static boolean visualMode = false;
 	private static final int DATA_SIZE = 30;
 
+	/**
+	 * SimulatedStateNode is used as the node to contain the simulatedstate for one ply.
+	 */
+	class SimulatedStateNode {
+		public SimulatedState ss;
+		public int id;
+		public float value;
+
+		public SimulatedStateNode(SimulatedState ss, int id, float value) {
+			this.ss = ss;
+			this.id = id;
+			this.value = value;
+		}
+	}
+
+	/**
+	 * Comparable class for SimulatedState
+	 */
+	public class ssComparator implements Comparator<SimulatedStateNode> {
+
+		public int compare(SimulatedStateNode x, SimulatedStateNode y) {
+			if (x.value > y.value) {
+				return -1;
+			} else if (x.value == y.value) {
+				return 0;
+			} else {
+				return 1;
+			}
+		}
+	}
+
+
 	//implement this function to have a working system
 	/**
 	 * Picks the move with the highest value.
@@ -45,13 +82,63 @@ public class PlayerSkeleton {
 	 * {@link PlayerSkeleton#simulateMove(State, int[]) simulateMove} method
 	 */
 	public int pickMove(State s, int[][] legalMoves) {
+		SimulatedState ss = new SimulatedState(s);
+		ArrayList<SimulatedStateNode> simulatedNodes = new ArrayList<SimulatedStateNode>();
 
 		int maxIdx = 0;
-		float max = simulateMove(s, legalMoves[0]);
+		float val = simulateMove(ss, legalMoves[0]);
+		float max = val;
+
+		simulatedNodes.add(new SimulatedStateNode(ss, 0, val));
 		for (int i = 1; i < legalMoves.length; i++) {
-			if (simulateMove(s, legalMoves[i]) > max) {
-				maxIdx = i;
-				max = simulateMove(s, legalMoves[i]);
+			ss = new SimulatedState(s);
+			val = simulateMove(ss, legalMoves[i]);
+			if (val > max || simulatedNodes.size() < NUM_BEST_SIMULATED) {
+				simulatedNodes.add(new SimulatedStateNode(ss, i, val));
+			}
+		}
+		maxIdx = selectiveExtension(simulatedNodes);
+
+		return maxIdx;
+	}
+
+	/**
+	 * Returns index of best move estimated from selective extension
+	 *
+	 * Performs selective extension of PlayerSkeleton#NUM_BEST_SIMULATED best nodes.
+	 * @param simulatedNodes list of nodes to be considered for selective extension
+	 */
+	private int selectiveExtension(ArrayList<SimulatedStateNode> simulatedNodes) {
+		int maxIdx = 0;
+		float max;
+
+		// Create PQ
+		PriorityQueue<SimulatedStateNode> ssNodesPQ = new PriorityQueue<SimulatedStateNode>(simulatedNodes.size(),
+				new ssComparator());
+		ssNodesPQ.addAll(simulatedNodes);
+
+		max = Float.NEGATIVE_INFINITY;
+		for (int i = 0; i < NUM_BEST_SIMULATED; i++) {
+			SimulatedStateNode ssNode = ssNodesPQ.poll();
+			SimulatedState ss = new SimulatedState(ssNode.ss);
+			float sum = 0;
+
+			for (int j = 0; j < State.N_PIECES; j++) {
+				float maxValue = Float.NEGATIVE_INFINITY;
+				ss.nextPiece = j;
+				int[][] moves = ss.legalMoves();
+				for (int k = 0; k < moves.length; k++) {
+					maxValue = Math.max(simulateMove(ss, moves[k]), maxValue);
+				}
+				sum += maxValue;
+			}
+
+			// normalize so that previous score has equal weightage as future score
+			ssNode.value += sum / 7;
+
+			if (ssNode.value > max) {
+				max = ssNode.value;
+				maxIdx = ssNode.id;
 			}
 		}
 
@@ -59,8 +146,7 @@ public class PlayerSkeleton {
 	}
 
 	// Simulates a move and returns a float that allows for evaluation. The higher the better.
-	public float simulateMove(State s, int[] move) {
-		SimulatedState ss = new SimulatedState(s);
+	public float simulateMove(SimulatedState ss, int[] move) {
 		return ss.getMoveValue(move);
 	}
 
