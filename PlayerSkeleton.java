@@ -66,10 +66,12 @@ public class PlayerSkeleton {
 
 		int maxIdx = 0;
 		double max = simulateMove(s, legalMoves[0]);
+		double moveVal;
 		for (int i = 1; i < legalMoves.length; i++) {
-			if (simulateMove(s, legalMoves[i]) > max) {
+		    moveVal = simulateMove(s, legalMoves[i]);
+			if (moveVal > max) {
 				maxIdx = i;
-				max = simulateMove(s, legalMoves[i]);
+				max = moveVal;
 			}
 		}
 
